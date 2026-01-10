@@ -96,7 +96,7 @@ def main():
     
     print("\nHeizkurve: tempVorlauf = a * (tempAussen - tempInnen) + b")
     a = get_input("Parameter a", -1.0, float)
-    b = get_input("Parameter b in °C", 20.0, float)
+    b = get_input("Parameter b in °C", 22.0, float)
     
     print("\nHinweis: A bezeichnet die Hüllfläche (Wände+Dach+...), nicht die Wohnfläche!")
     print("Faustformel: Hüllfläche ≈ 2 bis 3 mal Wohnfläche.")
