@@ -1,0 +1,18 @@
+Schreibe ein Python Programm für folgende Aufgabe:
+Berechne den erwarteten Verbrauch an elektrischer Energie einer Wärmepumpe in einem Gebäude in einem Zeitraum der durch datumStart und datumEnd gegeben ist, wobei beide Daten in der Vergangenheit liegen müssen. Berechne weiterhin den COP der Wärmepumpe im angegebenen Zeitraum.
+
+- Die Berechnung soll für die Wärmepumpe eine Heizkurve folgender Form annehmen: tempVorlauf = a * (tempAussen - tempInnen) + b, wobei a standardmäßig gleich 1 und b gleich 20°Celsius sein sollen.
+- Nehme für die Wärmepumpe eine vom Anwender eingebbare Effizienz eff an. Die Effizienz ist die von der Wärmepumpe gepumpte Wärme im Vergleich zum physikalisch möglichem Optimum, dem Carnot-Prozess.
+- Die Außentemperatur soll in dem angegebenen Zeitraum stündlich mittels Open-Meteo Historical API ausgewertet werden.
+- Die Heizlast Q soll gemäß DIN EN 12831 angenommen werden, also : Q=U*A*(tempInnen-tempAussen), wobei A die Gesamtfläche des Gebäudes ist uns U der Wärmedurchgangskoeffizient (mit der Einheit W/m^2*K).
+- Der Anwender soll folgende Werte eingeben können:
+-- eff als Wert zwischen 0 und 1 mit voreingestelltem Wert=0.5
+-- datumEnd als Datum mit voreingestelltem Wert= gestern
+-- datumStart als Datummit voreingestelltem Wert= gestern - 1 Jahr
+-- tempInnen in °C mit voreingestelltem Wert 20°C 
+-- a mit voreingestelltem Wert = -1
+-- b mit voreingestelltem Wert 20°C
+-- A mit voreingestelltem Wert 100 m^2
+-- U mit voreingestelltem Wert 0,5 W/m^2*K
+
+
