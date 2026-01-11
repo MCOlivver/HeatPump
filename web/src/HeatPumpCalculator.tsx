@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { subDays, subYears, format } from 'date-fns';
 import './HeatPumpCalculator.css';
@@ -20,29 +20,52 @@ interface GeoResult {
   }>;
 }
 
+// Hook to persist state in localStorage
+function useStickyState<T>(defaultValue: T, key: string): [T, React.Dispatch<React.SetStateAction<T>>] {
+  const [value, setValue] = useState<T>(() => {
+    try {
+      const stickyValue = window.localStorage.getItem(key);
+      return stickyValue !== null ? JSON.parse(stickyValue) : defaultValue;
+    } catch (error) {
+      console.warn(`Error reading localStorage key "${key}":`, error);
+      return defaultValue;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(key, JSON.stringify(value));
+    } catch (error) {
+      console.warn(`Error writing localStorage key "${key}":`, error);
+    }
+  }, [key, value]);
+
+  return [value, setValue];
+}
+
 const HeatPumpCalculator: React.FC = () => {
   // Defaults
   const today = new Date();
   const yesterday = subDays(today, 1);
   const oneYearAgo = subYears(yesterday, 1);
 
-  const [eff, setEff] = useState<number>(0.5);
+  const [eff, setEff] = useStickyState<number>(0.5, 'hp_eff');
   const [startDate, setStartDate] = useState<string>(format(oneYearAgo, 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState<string>(format(yesterday, 'yyyy-MM-dd'));
-  const [tempInnen, setTempInnen] = useState<number>(20.0);
-  const [paramA, setParamA] = useState<number>(1.0);
-  const [paramB, setParamB] = useState<number>(22.0);
-  const [area, setArea] = useState<number>(100.0);
-  const [uVal, setUVal] = useState<number>(0.5);
+  const [tempInnen, setTempInnen] = useStickyState<number>(20.0, 'hp_tempInnen');
+  const [paramA, setParamA] = useStickyState<number>(1.0, 'hp_paramA');
+  const [paramB, setParamB] = useStickyState<number>(22.0, 'hp_paramB');
+  const [area, setArea] = useStickyState<number>(100.0, 'hp_area');
+  const [uVal, setUVal] = useStickyState<number>(0.5, 'hp_uVal');
 
-  const [calcMode, setCalcMode] = useState<'physics' | 'consumption'>('physics');
-  const [fuelType, setFuelType] = useState<'gas' | 'oil'>('gas');
-  const [fuelAmount, setFuelAmount] = useState<number>(15000);
-  const [oldEff, setOldEff] = useState<number>(0.85);
+  const [calcMode, setCalcMode] = useStickyState<'physics' | 'consumption'>('physics', 'hp_calcMode');
+  const [fuelType, setFuelType] = useStickyState<'gas' | 'oil'>('gas', 'hp_fuelType');
+  const [fuelAmount, setFuelAmount] = useStickyState<number>(15000, 'hp_fuelAmount');
+  const [oldEff, setOldEff] = useStickyState<number>(0.85, 'hp_oldEff');
   
-  const [locationName, setLocationName] = useState<string>('Hamburg');
-  const [lat, setLat] = useState<number>(53.5511);
-  const [lon, setLon] = useState<number>(9.9937);
+  const [locationName, setLocationName] = useStickyState<string>('Hamburg', 'hp_locationName');
+  const [lat, setLat] = useStickyState<number>(53.5511, 'hp_lat');
+  const [lon, setLon] = useStickyState<number>(9.9937, 'hp_lon');
   
   const [loading, setLoading] = useState<boolean>(false);
   const [result, setResult] = useState<{
@@ -97,6 +120,25 @@ const HeatPumpCalculator: React.FC = () => {
       setError("Fehler bei der Ortssuche.");
       console.error(e);
     }
+  };
+
+  const restoreDefaults = () => {
+      setEff(0.5);
+      setTempInnen(20.0);
+      setParamA(1.0);
+      setParamB(22.0);
+      setArea(100.0);
+      setUVal(0.5);
+      setCalcMode('physics');
+      setFuelType('gas');
+      setFuelAmount(15000);
+      setOldEff(0.85);
+      setLocationName('Hamburg');
+      setLat(53.5511);
+      setLon(9.9937);
+      // Dates are not sticky, so we can leave them or reset them too if desired
+      // setStartDate(format(oneYearAgo, 'yyyy-MM-dd'));
+      // setEndDate(format(yesterday, 'yyyy-MM-dd'));
   };
 
   const calculate = async () => {
@@ -270,6 +312,7 @@ const HeatPumpCalculator: React.FC = () => {
         <div className="input-group">
            <label>Effizienz (0-1):</label>
            <input type="number" step="0.05" value={eff} onChange={(e) => setEff(parseFloat(e.target.value))} />
+           <small style={{display: 'block', marginTop: '4px', color: '#666'}}>typischerweise 0,5 für Luft-Wasser-Wärmepumpe</small>
         </div>
         <div className="input-group">
            <label>Innentemp (°C) T_innen:</label>
@@ -319,12 +362,12 @@ const HeatPumpCalculator: React.FC = () => {
       {calcMode === 'physics' ? (
         <div className="grid-2">
             <div className="input-group">
-            <label title="Wände + Dach + Fenster + Boden. Typischerweise ca. 3 * Wohnfläche">Hüllfläche A (m²):</label>
+            <label title="Außenwände + Dach + Fenster + Boden. Typischerweise ca. 3 * Wohnfläche">Hüllfläche A (m²):</label>
             <input type="number" value={area} onChange={(e) => setArea(parseFloat(e.target.value))} />
             <small style={{display: 'block', marginTop: '4px', color: '#666'}}>typischerweise ca. 3*Wohnfläche</small>
             </div>
             <div className="input-group">
-            <label>U-Wert (W/m²K):</label>
+            <label>Wärmedurchgangskoeffizient U (W/m²K):</label>
             <input type="number" step="0.1" value={uVal} onChange={(e) => setUVal(parseFloat(e.target.value))} />
             </div>
         </div>
@@ -348,9 +391,14 @@ const HeatPumpCalculator: React.FC = () => {
         </div>
       )}
       
-      <button className="calc-btn" onClick={calculate} disabled={loading}>
-        {loading ? 'Berechne...' : 'Berechnen'}
-      </button>
+      <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+        <button className="calc-btn" onClick={calculate} disabled={loading} style={{ flex: 1 }}>
+            {loading ? 'Berechne...' : 'Berechnen'}
+        </button>
+        <button onClick={restoreDefaults} style={{ backgroundColor: '#666', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '4px', cursor: 'pointer' }}>
+            Standardwerte
+        </button>
+      </div>
 
       {error && <div className="error">{error}</div>}
 
@@ -363,15 +411,13 @@ const HeatPumpCalculator: React.FC = () => {
           <p>Stromverbrauch: <strong>{result.elecKWh.toFixed(2)} kWh</strong></p>
           
           <div style={{margin: '15px 0', borderTop: '1px solid #ccc', paddingTop: '10px'}}>
-              <p>Max. Heizlast: <strong>{(result.maxHeatLoadW / 1000).toFixed(2)} kW</strong> <br/>
-                 <small>am {result.maxHeatDate}</small>
-              </p>
+              <p>Max. Heizlast: <strong>{(result.maxHeatLoadW / 1000).toFixed(2)} kW</strong></p>
               <p>Max. elektr. Leistung: <strong>{(result.maxElecLoadW / 1000).toFixed(2)} kW</strong> <br/>
                  <small>am {result.maxElecDate}</small>
               </p>
           </div>
 
-          <p className="big-jaz">JAZ: {result.jaz.toFixed(2)}</p>
+          <p className="big-jaz">Jahresarbeitszahl: {result.jaz.toFixed(2)}</p>
         </div>
       )}
     </div>
