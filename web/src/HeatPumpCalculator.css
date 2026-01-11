@@ -20,11 +20,13 @@
   font-size: 0.9rem;
 }
 
-.input-group input {
+.input-group input, .input-group select {
   width: 100%;
   padding: 8px;
   border: 1px solid #ccc;
   border-radius: 4px;
+  background-color: #ffffe0; /* Light yellow */
+  color: #000;
 }
 
 .input-header {

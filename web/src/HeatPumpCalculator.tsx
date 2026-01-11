@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { subDays, subYears, format } from 'date-fns';
 import './HeatPumpCalculator.css';
@@ -78,9 +78,21 @@ const HeatPumpCalculator: React.FC = () => {
     maxHeatDate: string;
     maxElecLoadW: number;
     maxElecDate: string;
+    maxElecTemp: number;
   } | null>(null);
   
   const [error, setError] = useState<string>('');
+  const resultRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (result && resultRef.current) {
+        resultRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [result]);
+
+  const formatNum = (val: number) => {
+    return val.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
 
   const handleLocationSearch = async () => {
     if (!locationName) return;
@@ -179,6 +191,7 @@ const HeatPumpCalculator: React.FC = () => {
       let maxHeatDate = '-';
       let maxElecLoadW = 0.0;
       let maxElecDate = '-';
+      let maxElecTemp = 0.0;
 
       // 1. First Pass: Calculate total "Degree Hours" if in consumption mode
       let k_load = 0; // W/K (Conductance)
@@ -265,6 +278,7 @@ const HeatPumpCalculator: React.FC = () => {
           if (pElec > maxElecLoadW) {
              maxElecLoadW = pElec;
              maxElecDate = resp.data.hourly.time[i];
+             maxElecTemp = tOut;
           }
         }
       }
@@ -282,7 +296,8 @@ const HeatPumpCalculator: React.FC = () => {
         maxHeatLoadW,
         maxHeatDate: maxHeatDate.replace('T', ' '),
         maxElecLoadW,
-        maxElecDate: maxElecDate.replace('T', ' ')
+        maxElecDate: maxElecDate.replace('T', ' '),
+        maxElecTemp
       });
 
     } catch (e) {
@@ -403,21 +418,21 @@ const HeatPumpCalculator: React.FC = () => {
       {error && <div className="error">{error}</div>}
 
       {result && (
-        <div className="result-box">
+        <div className="result-box" ref={resultRef}>
           <h3>Ergebnis</h3>
           <p>Gesamte Stunden: <strong>{result.hoursTotal}</strong></p>
           <p>Heizstunden: <strong>{result.hoursHeating}</strong></p>
-          <p>Heizwärmebedarf: <strong>{result.heatKWh.toFixed(2)} kWh</strong></p>
-          <p>Stromverbrauch: <strong>{result.elecKWh.toFixed(2)} kWh</strong></p>
+          <p>Heizwärmebedarf: <strong>{formatNum(result.heatKWh)} kWh</strong></p>
+          <p>Stromverbrauch: <strong>{formatNum(result.elecKWh)} kWh</strong></p>
           
           <div style={{margin: '15px 0', borderTop: '1px solid #ccc', paddingTop: '10px'}}>
-              <p>Max. Heizlast: <strong>{(result.maxHeatLoadW / 1000).toFixed(2)} kW</strong></p>
-              <p>Max. elektr. Leistung: <strong>{(result.maxElecLoadW / 1000).toFixed(2)} kW</strong> <br/>
-                 <small>am {result.maxElecDate}</small>
+              <p>Max. Heizlast: <strong>{formatNum(result.maxHeatLoadW / 1000)} kW</strong></p>
+              <p>Max. elektr. Leistung: <strong>{formatNum(result.maxElecLoadW / 1000)} kW</strong> <br/>
+                 <small>am {result.maxElecDate} ({formatNum(result.maxElecTemp)} °C)</small>
               </p>
           </div>
 
-          <p className="big-jaz">Jahresarbeitszahl: {result.jaz.toFixed(2)}</p>
+          <p className="big-jaz">Jahresarbeitszahl: {formatNum(result.jaz)}</p>
         </div>
       )}
     </div>
