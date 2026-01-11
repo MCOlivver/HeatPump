@@ -94,8 +94,8 @@ def main():
     # Building Params
     temp_innen = get_input("Innentemperatur (tempInnen) in °C", 20.0, float)
     
-    print("\nHeizkurve: tempVorlauf = a * (tempAussen - tempInnen) + b")
-    a = get_input("Parameter a", -1.0, float)
+    print("\nHeizkurve: tempVorlauf = a * (tempInnen - tempAussen) + b")
+    a = get_input("Parameter a", 1.0, float)
     b = get_input("Parameter b in °C", 22.0, float)
     
     print("\nHinweis: A bezeichnet die Hüllfläche (Wände+Dach+...), nicht die Wohnfläche!")
@@ -150,7 +150,7 @@ def main():
             q_load_w = u_val * area * (temp_innen - temp_aussen)
             
             # Heizkurve: Vorlauftemperatur
-            temp_vorlauf = a * (temp_aussen - temp_innen) + b
+            temp_vorlauf = a * (temp_innen - temp_aussen) + b
             
             # Kelvin Conversion
             t_vorlauf_k = temp_vorlauf + 273.15
@@ -209,11 +209,11 @@ def main():
     print(f"Erwarteter Stromverbrauch: {elec_kwh:.2f} kWh")
     print(f"Jahresarbeitszahl (COP über Zeitraum): {jaz:.2f}")
 
-    if a == 1.0 and b == 20.0 and temp_innen == 20.0:
-        print("\nHinweis: Mit den gewählten Parametern (a=1, b=20, Ti=20) ergibt die Heizkurve")
+    if a == -1.0 and b == 20.0 and temp_innen == 20.0:
+        print("\nHinweis: Mit den gewählten Parametern (a=-1, b=20, Ti=20) ergibt die Heizkurve")
         print("eine Vorlauftemperatur gleich der Außentemperatur. Dies führt theoretisch")
         print("zu unendlichem COP (JAZ steigt stark), da keine Temperaturdifferenz gepumpt wird.")
-        print("Für realistische Szenarien wählen Sie z.B. a = -1.")
+        print("Für realistische Szenarien wählen Sie z.B. a = 1.")
 
 if __name__ == "__main__":
     main()
