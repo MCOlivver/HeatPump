@@ -30,10 +30,15 @@ const HeatPumpCalculator: React.FC = () => {
   const [startDate, setStartDate] = useState<string>(format(oneYearAgo, 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState<string>(format(yesterday, 'yyyy-MM-dd'));
   const [tempInnen, setTempInnen] = useState<number>(20.0);
-  const [paramA, setParamA] = useState<number>(-1.0);
+  const [paramA, setParamA] = useState<number>(1.0);
   const [paramB, setParamB] = useState<number>(22.0);
   const [area, setArea] = useState<number>(100.0);
   const [uVal, setUVal] = useState<number>(0.5);
+
+  const [calcMode, setCalcMode] = useState<'physics' | 'consumption'>('physics');
+  const [fuelType, setFuelType] = useState<'gas' | 'oil'>('gas');
+  const [fuelAmount, setFuelAmount] = useState<number>(15000);
+  const [oldEff, setOldEff] = useState<number>(0.85);
   
   const [locationName, setLocationName] = useState<string>('Hamburg');
   const [lat, setLat] = useState<number>(53.5511);
@@ -46,6 +51,10 @@ const HeatPumpCalculator: React.FC = () => {
     heatKWh: number;
     elecKWh: number;
     jaz: number;
+    maxHeatLoadW: number;
+    maxHeatDate: string;
+    maxElecLoadW: number;
+    maxElecDate: string;
   } | null>(null);
   
   const [error, setError] = useState<string>('');
@@ -123,16 +132,64 @@ const HeatPumpCalculator: React.FC = () => {
       let totalHeatWh = 0.0;
       let totalElecWh = 0.0;
       let heatHours = 0;
+      
+      let maxHeatLoadW = 0.0;
+      let maxHeatDate = '-';
+      let maxElecLoadW = 0.0;
+      let maxElecDate = '-';
 
-      for (const tOut of temps) {
+      // 1. First Pass: Calculate total "Degree Hours" if in consumption mode
+      let k_load = 0; // W/K (Conductance)
+      
+      if (calcMode === 'consumption') {
+         let sumDegreeHours = 0;
+         for (const tOut of temps) {
+             if (tOut !== null && tOut < tempInnen) {
+                 sumDegreeHours += (tempInnen - tOut);
+             }
+         }
+         
+         if (sumDegreeHours === 0) {
+           setError("Keine Heizstunden im Zeitraum. Berechnung aus Verbrauch nicht möglich.");
+           setLoading(false);
+           return;
+         }
+         
+         // Total Heat Demand (kWh) = Fuel (kWh) * Efficiency
+         // Fuel kWh conversion:
+         // Gas: kWh -> kWh
+         // Oil: Liters -> kWh (~10 kWh/L)
+         let fuelKWh = fuelAmount;
+         if (fuelType === 'oil') {
+             fuelKWh = fuelAmount * 10.0; 
+         }
+         
+         const totalHeatDemandKWh = fuelKWh * oldEff;
+         
+         // k_load [W/K] = (TotalHeat [Wh]) / (SumDeltaT [K*h])
+         //              = (TotalHeatKWh * 1000) / sumDegreeHours
+         k_load = (totalHeatDemandKWh * 1000.0) / sumDegreeHours;
+         
+      } else {
+         // Physics Mode: k_load = U * A
+         k_load = uVal * area;
+      }
+
+      for (let i = 0; i < temps.length; i++) {
+        const tOut = temps[i];
         if (tOut === null || tOut === undefined) continue;
         
-        // Heizlast Q = U * A * (Ti - Ta)
+        // Heizlast Q = k_load * (Ti - Ta)
         if (tOut < tempInnen) {
-          const qLoad = uVal * area * (tempInnen - tOut);
+          const qLoad = k_load * (tempInnen - tOut);
           
+          if (qLoad > maxHeatLoadW) {
+             maxHeatLoadW = qLoad;
+             maxHeatDate = resp.data.hourly.time[i];
+          }
+
           // Vorlauf
-          const tVorlauf = paramA * (tOut - tempInnen) + paramB;
+          const tVorlauf = paramA * (tempInnen - tOut) + paramB;
           
           const tVorlaufK = tVorlauf + 273.15;
           const tOutK = tOut + 273.15;
@@ -150,18 +207,23 @@ const HeatPumpCalculator: React.FC = () => {
           let copReal = eff * copCarnot;
           if (copReal < 1.0) copReal = 1.0;
           
+          let pElec = 0.0;
           // Max limit to avoid infinity
           if (copReal > 20000) {
             // Near infinite efficiency -> 0 electricity
-            totalHeatWh += qLoad;
-            // totalElecWh += 0;
+            pElec = 0.0;
           } else {
-             const pElec = qLoad / copReal;
-             totalHeatWh += qLoad;
-             totalElecWh += pElec;
+             pElec = qLoad / copReal;
           }
-          
+            
+          totalHeatWh += qLoad;
+          totalElecWh += pElec;
           heatHours++;
+          
+          if (pElec > maxElecLoadW) {
+             maxElecLoadW = pElec;
+             maxElecDate = resp.data.hourly.time[i];
+          }
         }
       }
       
@@ -174,7 +236,11 @@ const HeatPumpCalculator: React.FC = () => {
         hoursHeating: heatHours,
         heatKWh,
         elecKWh,
-        jaz
+        jaz,
+        maxHeatLoadW,
+        maxHeatDate: maxHeatDate.replace('T', ' '),
+        maxElecLoadW,
+        maxElecDate: maxElecDate.replace('T', ' ')
       });
 
     } catch (e) {
@@ -206,7 +272,7 @@ const HeatPumpCalculator: React.FC = () => {
            <input type="number" step="0.05" value={eff} onChange={(e) => setEff(parseFloat(e.target.value))} />
         </div>
         <div className="input-group">
-           <label>Innentemp (°C):</label>
+           <label>Innentemp (°C) T_innen:</label>
            <input type="number" value={tempInnen} onChange={(e) => setTempInnen(parseFloat(e.target.value))} />
         </div>
       </div>
@@ -222,7 +288,7 @@ const HeatPumpCalculator: React.FC = () => {
          </div>
       </div>
 
-      <div className="input-header">Heizkurve: T_vl = a * (Ta - Ti) + b</div>
+      <div className="input-header">Heizkurve: T_vorlauf = a*(T_innen - T_aussen) + b</div>
       <div className="grid-2">
          <div className="input-group">
            <label>Parameter a:</label>
@@ -234,17 +300,52 @@ const HeatPumpCalculator: React.FC = () => {
          </div>
       </div>
 
-      <div className="input-header">Gebäude</div>
-      <div className="grid-2">
-         <div className="input-group">
-           <label title="Wände + Dach + Fenster + Boden">Hüllfläche A (m²):</label>
-           <input type="number" value={area} onChange={(e) => setArea(parseFloat(e.target.value))} />
-         </div>
-         <div className="input-group">
-           <label>U-Wert (W/m²K):</label>
-           <input type="number" step="0.1" value={uVal} onChange={(e) => setUVal(parseFloat(e.target.value))} />
-         </div>
+      <div className="input-group">
+        <label>Berechnungsmodus:</label>
+        <div className="radio-group">
+            <label>
+                <input type="radio" checked={calcMode === 'physics'} onChange={() => setCalcMode('physics')} />
+                Bauphysik (U * A)
+            </label>
+            <label>
+                <input type="radio" checked={calcMode === 'consumption'} onChange={() => setCalcMode('consumption')} />
+                Verbrauch (Gas/Öl)
+            </label>
+        </div>
       </div>
+
+      <div className="input-header">Gebäude & Heizlast</div>
+      
+      {calcMode === 'physics' ? (
+        <div className="grid-2">
+            <div className="input-group">
+            <label title="Wände + Dach + Fenster + Boden">Hüllfläche A (m²):</label>
+            <input type="number" value={area} onChange={(e) => setArea(parseFloat(e.target.value))} />
+            </div>
+            <div className="input-group">
+            <label>U-Wert (W/m²K):</label>
+            <input type="number" step="0.1" value={uVal} onChange={(e) => setUVal(parseFloat(e.target.value))} />
+            </div>
+        </div>
+      ) : (
+        <div className="consumption-box">
+             <div className="input-group">
+                <label>Brennstoff:</label>
+                <select value={fuelType} onChange={(e) => setFuelType(e.target.value as 'gas' | 'oil')}>
+                    <option value="gas">Gas (kWh)</option>
+                    <option value="oil">Öl (Liter)</option>
+                </select>
+             </div>
+             <div className="input-group">
+                <label>Verbrauch ({fuelType === 'gas' ? 'kWh' : 'Liter'}):</label>
+                <input type="number" value={fuelAmount} onChange={(e) => setFuelAmount(parseFloat(e.target.value))} />
+             </div>
+             <div className="input-group">
+                <label title="Wirkungsgrad der alten Heizung">Nutzungsgrad Alt-Anlage (0-1):</label>
+                <input type="number" step="0.05" value={oldEff} onChange={(e) => setOldEff(parseFloat(e.target.value))} />
+             </div>
+        </div>
+      )}
       
       <button className="calc-btn" onClick={calculate} disabled={loading}>
         {loading ? 'Berechne...' : 'Berechnen'}
@@ -259,6 +360,16 @@ const HeatPumpCalculator: React.FC = () => {
           <p>Heizstunden: <strong>{result.hoursHeating}</strong></p>
           <p>Heizwärmebedarf: <strong>{result.heatKWh.toFixed(2)} kWh</strong></p>
           <p>Stromverbrauch: <strong>{result.elecKWh.toFixed(2)} kWh</strong></p>
+          
+          <div style={{margin: '15px 0', borderTop: '1px solid #ccc', paddingTop: '10px'}}>
+              <p>Max. Heizlast: <strong>{(result.maxHeatLoadW / 1000).toFixed(2)} kW</strong> <br/>
+                 <small>am {result.maxHeatDate}</small>
+              </p>
+              <p>Max. elektr. Leistung: <strong>{(result.maxElecLoadW / 1000).toFixed(2)} kW</strong> <br/>
+                 <small>am {result.maxElecDate}</small>
+              </p>
+          </div>
+
           <p className="big-jaz">JAZ: {result.jaz.toFixed(2)}</p>
         </div>
       )}
