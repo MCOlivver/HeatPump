@@ -319,8 +319,9 @@ const HeatPumpCalculator: React.FC = () => {
       {calcMode === 'physics' ? (
         <div className="grid-2">
             <div className="input-group">
-            <label title="Wände + Dach + Fenster + Boden">Hüllfläche A (m²):</label>
+            <label title="Wände + Dach + Fenster + Boden. Typischerweise ca. 3 * Wohnfläche">Hüllfläche A (m²):</label>
             <input type="number" value={area} onChange={(e) => setArea(parseFloat(e.target.value))} />
+            <small style={{display: 'block', marginTop: '4px', color: '#666'}}>typischerweise ca. 3*Wohnfläche</small>
             </div>
             <div className="input-group">
             <label>U-Wert (W/m²K):</label>
