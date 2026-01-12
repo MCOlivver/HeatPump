@@ -58,6 +58,15 @@ const HeatPumpCalculator: React.FC = () => {
   const [tempInnen, setTempInnen] = useStickyState<number>(20.0, 'hp_tempInnen');
   const [paramA, setParamA] = useStickyState<number>(1.0, 'hp_paramA');
   const [paramB, setParamB] = useStickyState<number>(22.0, 'hp_paramB');
+
+  const [curveMode, setCurveMode] = useStickyState<'params' | 'points'>('params', 'hp_curveMode');
+  // Point 1 (Start/Fußpunkt)
+  const [p1Out, setP1Out] = useStickyState<number>(20, 'hp_p1Out');
+  const [p1Flow, setP1Flow] = useStickyState<number>(25, 'hp_p1Flow');
+  // Point 2 (End/Endpunkt)
+  const [p2Out, setP2Out] = useStickyState<number>(-15, 'hp_p2Out');
+  const [p2Flow, setP2Flow] = useStickyState<number>(55, 'hp_p2Flow');
+
   const [area, setArea] = useStickyState<number>(100.0, 'hp_area');
   const [uVal, setUVal] = useStickyState<number>(0.5, 'hp_uVal');
 
@@ -179,6 +188,11 @@ const HeatPumpCalculator: React.FC = () => {
       setTempInnen(20.0);
       setParamA(1.0);
       setParamB(22.0);
+      setCurveMode('params');
+      setP1Out(20);
+      setP1Flow(25);
+      setP2Out(-15);
+      setP2Flow(55);
       setArea(100.0);
       setUVal(0.5);
       setCalcMode('physics');
@@ -284,7 +298,19 @@ const HeatPumpCalculator: React.FC = () => {
           }
 
           // Vorlauf
-          const tVorlauf = paramA * (tempInnen - tOut) + paramB;
+          let tVorlauf = 0;
+          if (curveMode === 'points') {
+             // Linear: Flow(Out)
+             // Avoid division by zero
+             if (Math.abs(p2Out - p1Out) < 0.001) {
+                 tVorlauf = (p1Flow + p2Flow) / 2; 
+             } else {
+                 const slope = (p2Flow - p1Flow) / (p2Out - p1Out);
+                 tVorlauf = p1Flow + (tOut - p1Out) * slope;
+             }
+          } else {
+             tVorlauf = paramA * (tempInnen - tOut) + paramB;
+          }
           
           const tVorlaufK = tVorlauf + 273.15;
           const tOutK = tOut + 273.15;
@@ -404,17 +430,64 @@ const HeatPumpCalculator: React.FC = () => {
          </div>
       </div>
 
-      <div className="input-header">Heizkurve: T_vorlauf = a*(T_innen - T_aussen) + b</div>
-      <div className="grid-2">
-         <div className="input-group">
-           <label>Parameter a:</label>
-           <input type="number" step="0.1" value={paramA} onChange={(e) => setParamA(parseFloat(e.target.value))} />
-         </div>
-         <div className="input-group">
-           <label>Parameter b (°C):</label>
-           <input type="number" value={paramB} onChange={(e) => setParamB(parseFloat(e.target.value))} />
-         </div>
+      <div className="input-header">Heizkurve</div>
+      <div className="input-group" style={{marginBottom: '10px'}}>
+        <div className="radio-group" style={{justifyContent: 'flex-start', gap: '20px'}}>
+            <label>
+                <input type="radio" checked={curveMode === 'params'} onChange={() => setCurveMode('params')} />
+                Parameter (a, b)
+            </label>
+            <label>
+                <input type="radio" checked={curveMode === 'points'} onChange={() => setCurveMode('points')} />
+                2-Punkte (Fuß/End)
+            </label>
+        </div>
       </div>
+
+      {curveMode === 'params' ? (
+        <div className="grid-2">
+           <div className="input-group">
+             <label title="Neigung/Steigung der Kurve">Parameter a (Neigung):</label>
+             <input type="number" step="0.1" value={paramA} onChange={(e) => setParamA(parseFloat(e.target.value))} />
+           </div>
+           <div className="input-group">
+             <label title="Niveau/Verschiebung">Parameter b (Niveau) °C:</label>
+             <input type="number" value={paramB} onChange={(e) => setParamB(parseFloat(e.target.value))} />
+           </div>
+           <small style={{gridColumn: '1 / -1', color:'#666', marginTop:'-10px', marginBottom:'10px'}}>
+             Formel: T_vorlauf = a*(T_innen - T_aussen) + b
+           </small>
+        </div>
+      ) : (
+        <div className="grid-2">
+           <div className="input-group">
+             <label>Punkt 1 (Fußpunkt):</label>
+             <div style={{display:'flex', gap:'10px', alignItems:'center'}}>
+                <div style={{flex:1}}>
+                  <small style={{display:'block', marginBottom:'2px'}}>Außen (T_aussen)</small>
+                  <input type="number" value={p1Out} onChange={(e) => setP1Out(parseFloat(e.target.value))} />
+                </div>
+                <div style={{flex:1}}>
+                  <small style={{display:'block', marginBottom:'2px'}}>Vorlauf (T_vl)</small>
+                  <input type="number" value={p1Flow} onChange={(e) => setP1Flow(parseFloat(e.target.value))} />
+                </div>
+             </div>
+           </div>
+           <div className="input-group">
+             <label>Punkt 2 (Endpunkt):</label>
+             <div style={{display:'flex', gap:'10px', alignItems:'center'}}>
+                <div style={{flex:1}}>
+                   <small style={{display:'block', marginBottom:'2px'}}>Außen (T_aussen)</small>
+                   <input type="number" value={p2Out} onChange={(e) => setP2Out(parseFloat(e.target.value))} />
+                </div>
+                <div style={{flex:1}}>
+                   <small style={{display:'block', marginBottom:'2px'}}>Vorlauf (T_vl)</small>
+                   <input type="number" value={p2Flow} onChange={(e) => setP2Flow(parseFloat(e.target.value))} />
+                </div>
+             </div>
+           </div>
+        </div>
+      )}
 
       <div className="input-group">
         <label>Berechnungsmodus:</label>
@@ -496,7 +569,7 @@ const HeatPumpCalculator: React.FC = () => {
       )}
 
       <div style={{ marginTop: '30px', textAlign: 'center', fontSize: '0.8rem', color: '#999' }}>
-        v1.5 (12.01.2025)
+        v1.6 (12.01.2025)
       </div>
     </div>
   );
