@@ -487,6 +487,10 @@ const HeatPumpCalculator: React.FC = () => {
           <p className="big-jaz">Arbeitszahl (COP): {formatNum(result.jaz)}</p>
         </div>
       )}
+
+      <div style={{ marginTop: '30px', textAlign: 'center', fontSize: '0.8rem', color: '#999' }}>
+        v1.3 (12.01.2025)
+      </div>
     </div>
   );
 };
