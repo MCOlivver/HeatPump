@@ -48,6 +48,9 @@ const HeatPumpCalculator: React.FC = () => {
   const today = new Date();
   const yesterday = subDays(today, 1);
   const oneYearAgo = subYears(yesterday, 1);
+  // Remove hours for date comparison
+  const todayStart = new Date(today);
+  todayStart.setHours(0,0,0,0);
 
   const [eff, setEff] = useStickyState<number>(0.5, 'hp_eff');
   const [startDate, setStartDate] = useState<string>(format(oneYearAgo, 'yyyy-MM-dd'));
@@ -79,8 +82,18 @@ const HeatPumpCalculator: React.FC = () => {
     maxElecLoadW: number;
     maxElecDate: string;
     maxElecTemp: number;
+    startDate: string; 
+    endDate: string;
   } | null>(null);
   
+  // Date validation
+  const dStart = new Date(startDate);
+  const dEnd = new Date(endDate);
+  
+  const isStartValid = dStart < todayStart;
+  const isEndValid = dEnd < todayStart && dStart <= dEnd;
+  const isDateRangeValid = isStartValid && isEndValid;
+
   const [error, setError] = useState<string>('');
   const resultRef = useRef<HTMLDivElement>(null);
 
@@ -92,6 +105,26 @@ const HeatPumpCalculator: React.FC = () => {
 
   const formatNum = (val: number) => {
     return val.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+  
+  const formatDateLocale = (dateStr: string) => {
+      // Expects YYYY-MM-DDT... or YYYY-MM-DD
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr;
+      return d.toLocaleDateString('de-DE'); // e.g. 11.1.2025
+  };
+  
+  const formatDateTimeLocale = (dateTimeStr: string) => {
+      // maxElecDate comes as ISO string "2024-01-15T06:00" from API. 
+      // We want something locale friendly
+      const d = new Date(dateTimeStr);
+      if (isNaN(d.getTime())) return dateTimeStr;
+      return d.toLocaleString('de-DE'); 
+  };
+  
+  // Validation style helper
+  const getStyle = (valid: boolean) => {
+      return valid ? {} : { border: '2px solid red', backgroundColor: '#ffeaea' };
   };
 
   const handleLocationSearch = async () => {
@@ -297,7 +330,9 @@ const HeatPumpCalculator: React.FC = () => {
         maxHeatDate: maxHeatDate.replace('T', ' '),
         maxElecLoadW,
         maxElecDate: maxElecDate.replace('T', ' '),
-        maxElecTemp
+        maxElecTemp,
+        startDate: startDate,
+        endDate: endDate
       });
 
     } catch (e) {
@@ -311,7 +346,7 @@ const HeatPumpCalculator: React.FC = () => {
   return (
     <div className="calculator-box">
       <div className="input-group">
-        <label>Ort (Name oder lat,lon):</label>
+        <label>Ort:</label>
         <div style={{display: 'flex', gap: '8px'}}>
           <input 
             type="text" 
@@ -320,7 +355,7 @@ const HeatPumpCalculator: React.FC = () => {
           />
           <button onClick={handleLocationSearch}>Suchen</button>
         </div>
-        <small>Lat: {lat}, Lon: {lon}</small>
+        <small>Breite: {lat}, Länge: {lon}</small>
       </div>
 
       <div className="grid-2">
@@ -338,11 +373,27 @@ const HeatPumpCalculator: React.FC = () => {
       <div className="grid-2">
          <div className="input-group">
            <label>Startdatum:</label>
-           <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+           <input 
+             type="date" 
+             value={startDate} 
+             onChange={(e) => setStartDate(e.target.value)} 
+             style={getStyle(isStartValid)}
+           />
+           <small style={{display: 'block', marginTop: '4px', color: isStartValid ? '#666' : 'red'}}>
+               &lt; heute
+           </small>
          </div>
          <div className="input-group">
            <label>Enddatum:</label>
-           <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+           <input 
+             type="date" 
+             value={endDate} 
+             onChange={(e) => setEndDate(e.target.value)} 
+             style={getStyle(isEndValid)}
+            />
+            <small style={{display: 'block', marginTop: '4px', color: isEndValid ? '#666' : 'red'}}>
+               Startdatum &lt;= Enddatum &lt; heute
+            </small>
          </div>
       </div>
 
@@ -407,7 +458,7 @@ const HeatPumpCalculator: React.FC = () => {
       )}
       
       <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
-        <button className="calc-btn" onClick={calculate} disabled={loading} style={{ flex: 1 }}>
+        <button className="calc-btn" onClick={calculate} disabled={loading || !isDateRangeValid} style={{ flex: 1, opacity: (loading || !isDateRangeValid) ? 0.6 : 1 }}>
             {loading ? 'Berechne...' : 'Berechnen'}
         </button>
         <button onClick={restoreDefaults} style={{ backgroundColor: '#666', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '4px', cursor: 'pointer' }}>
@@ -420,6 +471,7 @@ const HeatPumpCalculator: React.FC = () => {
       {result && (
         <div className="result-box" ref={resultRef}>
           <h3>Ergebnis</h3>
+          <p style={{marginBottom: '15px'}}>Berechnungszeitraum {formatDateLocale(result.startDate)} bis {formatDateLocale(result.endDate)}</p>
           <p>Gesamte Stunden: <strong>{result.hoursTotal}</strong></p>
           <p>Heizstunden: <strong>{result.hoursHeating}</strong></p>
           <p>Heizwärmebedarf: <strong>{formatNum(result.heatKWh)} kWh</strong></p>
@@ -428,11 +480,11 @@ const HeatPumpCalculator: React.FC = () => {
           <div style={{margin: '15px 0', borderTop: '1px solid #ccc', paddingTop: '10px'}}>
               <p>Max. Heizlast: <strong>{formatNum(result.maxHeatLoadW / 1000)} kW</strong></p>
               <p>Max. elektr. Leistung: <strong>{formatNum(result.maxElecLoadW / 1000)} kW</strong> <br/>
-                 <small>am {result.maxElecDate} ({formatNum(result.maxElecTemp)} °C)</small>
+                 <small>am {formatDateTimeLocale(result.maxElecDate)} ({formatNum(result.maxElecTemp)} °C)</small>
               </p>
           </div>
 
-          <p className="big-jaz">Jahresarbeitszahl: {formatNum(result.jaz)}</p>
+          <p className="big-jaz">Arbeitszahl (COP): {formatNum(result.jaz)}</p>
         </div>
       )}
     </div>
