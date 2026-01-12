@@ -309,7 +309,7 @@ const HeatPumpCalculator: React.FC = () => {
                  tVorlauf = p1Flow + (tOut - p1Out) * slope;
              }
           } else {
-             tVorlauf = paramA * (tempInnen - tOut) + paramB;
+             tVorlauf = - tOut * paramA - tOut + paramB;
           }
           
           const tVorlaufK = tVorlauf + 273.15;
@@ -455,7 +455,7 @@ const HeatPumpCalculator: React.FC = () => {
              <input type="number" value={paramB} onChange={(e) => setParamB(parseFloat(e.target.value))} />
            </div>
            <small style={{gridColumn: '1 / -1', color:'#666', marginTop:'-10px', marginBottom:'10px'}}>
-             Formel: T_vorlauf = a*(T_innen - T_aussen) + b
+             Formel: T_vorlauf = - T_aussen * a - T_aussen + b
            </small>
         </div>
       ) : (
@@ -569,7 +569,7 @@ const HeatPumpCalculator: React.FC = () => {
       )}
 
       <div style={{ marginTop: '30px', textAlign: 'center', fontSize: '0.8rem', color: '#999' }}>
-        v1.6 (12.01.2025)
+        v1.7 (12.01.2025)
       </div>
     </div>
   );
