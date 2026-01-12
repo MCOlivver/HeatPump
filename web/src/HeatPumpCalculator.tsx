@@ -386,8 +386,8 @@ const HeatPumpCalculator: React.FC = () => {
              onChange={(e) => setStartDate(e.target.value)} 
              style={getStyle(isStartValid)}
            />
-           <small style={{display: 'block', marginTop: '4px', color: isStartValid ? '#666' : 'red'}}>
-               &lt; heute
+           <small style={{display: 'block', marginTop: '4px', color: '#666'}}>
+               Startdatum &lt; heute
            </small>
          </div>
          <div className="input-group">
@@ -398,7 +398,7 @@ const HeatPumpCalculator: React.FC = () => {
              onChange={(e) => setEndDate(e.target.value)} 
              style={getStyle(isEndValid)}
             />
-            <small style={{display: 'block', marginTop: '4px', color: isEndValid ? '#666' : 'red'}}>
+            <small style={{display: 'block', marginTop: '4px', color: '#666'}}>
                Startdatum &lt;= Enddatum &lt; heute
             </small>
          </div>
@@ -496,7 +496,7 @@ const HeatPumpCalculator: React.FC = () => {
       )}
 
       <div style={{ marginTop: '30px', textAlign: 'center', fontSize: '0.8rem', color: '#999' }}>
-        v1.4 (12.01.2025)
+        v1.5 (12.01.2025)
       </div>
     </div>
   );
