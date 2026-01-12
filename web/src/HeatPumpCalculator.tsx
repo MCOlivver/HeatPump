@@ -186,12 +186,12 @@ const HeatPumpCalculator: React.FC = () => {
   const restoreDefaults = () => {
       setEff(0.5);
       setTempInnen(20.0);
-      setParamA(1.0);
-      setParamB(22.0);
+      setParamA(0.71);
+      setParamB(37);
       setCurveMode('params');
       setP1Out(20);
-      setP1Flow(25);
-      setP2Out(-15);
+      setP1Flow(23);
+      setP2Out(-25);
       setP2Flow(55);
       setArea(100.0);
       setUVal(0.5);
@@ -309,7 +309,7 @@ const HeatPumpCalculator: React.FC = () => {
                  tVorlauf = p1Flow + (tOut - p1Out) * slope;
              }
           } else {
-             tVorlauf = - tOut * paramA - tOut + paramB;
+             tVorlauf = - tOut * paramA + paramB;
           }
           
           const tVorlaufK = tVorlauf + 273.15;
@@ -455,7 +455,7 @@ const HeatPumpCalculator: React.FC = () => {
              <input type="number" value={paramB} onChange={(e) => setParamB(parseFloat(e.target.value))} />
            </div>
            <small style={{gridColumn: '1 / -1', color:'#666', marginTop:'-10px', marginBottom:'10px'}}>
-             Formel: T_vorlauf = - T_aussen * a - T_aussen + b
+             Formel: T_vorlauf = - T_aussen * a + b, wobei b die Vorlauftemperatur bei 0°C Außen darstellt.
            </small>
         </div>
       ) : (
@@ -569,7 +569,7 @@ const HeatPumpCalculator: React.FC = () => {
       )}
 
       <div style={{ marginTop: '30px', textAlign: 'center', fontSize: '0.8rem', color: '#999' }}>
-        v1.7 (12.01.2025)
+        v1.8 (12.01.2025)
       </div>
     </div>
   );
