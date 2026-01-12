@@ -87,11 +87,18 @@ const HeatPumpCalculator: React.FC = () => {
   } | null>(null);
   
   // Date validation
-  const dStart = new Date(startDate);
-  const dEnd = new Date(endDate);
+  // Convert startDate string "YYYY-MM-DD" to a local date object at midnight
+  const parseLocalYMD = (s: string) => {
+    const parts = s.split('-');
+    if (parts.length !== 3) return new Date('Invalid');
+    return new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]));
+  }
+
+  const locStart = parseLocalYMD(startDate);
+  const locEnd = parseLocalYMD(endDate);
   
-  const isStartValid = dStart < todayStart;
-  const isEndValid = dEnd < todayStart && dStart <= dEnd;
+  const isStartValid = !isNaN(locStart.getTime()) && locStart < todayStart;
+  const isEndValid = !isNaN(locEnd.getTime()) && locEnd < todayStart && locStart <= locEnd;
   const isDateRangeValid = isStartValid && isEndValid;
 
   const [error, setError] = useState<string>('');
