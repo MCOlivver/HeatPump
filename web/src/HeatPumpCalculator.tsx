@@ -496,7 +496,7 @@ const HeatPumpCalculator: React.FC = () => {
       )}
 
       <div style={{ marginTop: '30px', textAlign: 'center', fontSize: '0.8rem', color: '#999' }}>
-        v1.3 (12.01.2025)
+        v1.4 (12.01.2025)
       </div>
     </div>
   );
