@@ -11,12 +11,15 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
       workbox: {
+        cleanupOutdatedCaches: true,
+        clientsClaim: true,
+        skipWaiting: true,
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/archive-api\.open-meteo\.com\/v1\/archive/,
             handler: 'CacheFirst',
             options: {
-              cacheName: 'weather-data-cache',
+              cacheName: 'weather-data-cache-v1.3',
               expiration: {
                 maxEntries: 50,
                 maxAgeSeconds: 60 * 60 * 24 * 30 // 30 Days
