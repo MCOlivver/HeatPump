@@ -667,7 +667,9 @@ const HeatPumpCalculator: React.FC = () => {
       )}
 
       <div style={{ marginTop: '30px', textAlign: 'center', fontSize: '0.8rem', color: '#999' }}>
-        v1.11 (16.01.2025)
+        v1.12 (16.01.2025)
+        <br />
+        Daten werden nur lokal zu Berechnungszwecken gespeichert.
       </div>
     </div>
   );
