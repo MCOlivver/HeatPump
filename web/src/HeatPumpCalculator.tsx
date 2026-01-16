@@ -10,14 +10,17 @@ interface WeatherData {
   };
 }
 
+interface LocationResult {
+  id: number;
+  name: string;
+  latitude: number;
+  longitude: number;
+  country?: string;
+  admin1?: string;
+}
+
 interface GeoResult {
-  results?: Array<{
-    id: number;
-    name: string;
-    latitude: number;
-    longitude: number;
-    country?: string;
-  }>;
+  results?: LocationResult[];
 }
 
 // Hook to persist state in localStorage
@@ -85,6 +88,7 @@ const HeatPumpCalculator: React.FC = () => {
   const [locationName, setLocationName] = useStickyState<string>('Hamburg', 'hp_locationName');
   const [lat, setLat] = useStickyState<number>(53.5511, 'hp_lat');
   const [lon, setLon] = useStickyState<number>(9.9937, 'hp_lon');
+  const [searchResults, setSearchResults] = useState<LocationResult[]>([]);
   
   const [loading, setLoading] = useState<boolean>(false);
   const [result, setResult] = useState<{
@@ -150,7 +154,16 @@ const HeatPumpCalculator: React.FC = () => {
       return valid ? {} : { border: '2px solid red', backgroundColor: '#ffeaea' };
   };
 
+  const selectLocation = (loc: LocationResult) => {
+      setLat(loc.latitude);
+      setLon(loc.longitude);
+      setLocationName(`${loc.name} (${loc.admin1 || loc.country || ''})`);
+      setSearchResults([]); 
+      setError('');
+  };
+
   const handleLocationSearch = async () => {
+    setSearchResults([]);
     if (!locationName) return;
     
     // Check if lat,lon format
@@ -172,15 +185,16 @@ const HeatPumpCalculator: React.FC = () => {
     try {
       const url = "https://geocoding-api.open-meteo.com/v1/search";
       const resp = await axios.get<GeoResult>(url, {
-        params: { name: locationName, count: 1, language: 'de', format: 'json' }
+        params: { name: locationName, count: 10, language: 'de', format: 'json' }
       });
       
       if (resp.data.results && resp.data.results.length > 0) {
-        const first = resp.data.results[0];
-        setLat(first.latitude);
-        setLon(first.longitude);
-        setError('');
-        alert(`Gefunden: ${first.name}, ${first.country} (${first.latitude}, ${first.longitude})`);
+        if (resp.data.results.length === 1) {
+             selectLocation(resp.data.results[0]);
+             alert(`Gefunden: ${resp.data.results[0].name}`);
+        } else {
+             setSearchResults(resp.data.results);
+        }
       } else {
         setError("Ort nicht gefunden.");
       }
@@ -412,17 +426,53 @@ const HeatPumpCalculator: React.FC = () => {
 
   return (
     <div className="calculator-box">
-      <div className="input-group">
+      <div className="input-group" style={{position: 'relative'}}>
         <label>Ort:</label>
         <div style={{display: 'flex', gap: '8px'}}>
           <input 
             type="text" 
             value={locationName} 
             onChange={(e) => setLocationName(e.target.value)} 
+            onKeyDown={(e) => e.key === 'Enter' && handleLocationSearch()}
           />
           <button onClick={handleLocationSearch}>Suchen</button>
         </div>
         <small>Breite: {lat}, Länge: {lon}</small>
+
+        {searchResults.length > 0 && (
+          <div style={{
+            position: 'absolute',
+            top: '100%',
+            left: 0, 
+            right: 0,
+            zIndex: 1000,
+            backgroundColor: 'white',
+            border: '1px solid #ccc',
+            borderRadius: '4px',
+            boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+            maxHeight: '200px',
+            overflowY: 'auto'
+          }}>
+            {searchResults.map(r => (
+                <div 
+                    key={r.id}
+                    onClick={() => selectLocation(r)}
+                    style={{
+                        padding: '10px',
+                        borderBottom: '1px solid #eee',
+                        cursor: 'pointer'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f5f5'}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
+                >
+                    <div style={{fontWeight: 'bold'}}>{r.name}</div>
+                    <div style={{fontSize: '0.85em', color: '#666'}}>
+                        {[r.admin1, r.country].filter(Boolean).join(', ')} ({r.latitude.toFixed(2)}, {r.longitude.toFixed(2)})
+                    </div>
+                </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="grid-2">
@@ -667,7 +717,7 @@ const HeatPumpCalculator: React.FC = () => {
       )}
 
       <div style={{ marginTop: '30px', textAlign: 'center', fontSize: '0.8rem', color: '#999' }}>
-        v1.12 (16.01.2025)
+        v1.13 (16.01.2025)
         <br />
         Daten werden nur lokal zu Berechnungszwecken gespeichert.
       </div>
