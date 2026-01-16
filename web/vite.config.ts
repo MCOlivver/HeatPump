@@ -5,6 +5,17 @@ import { VitePWA } from 'vite-plugin-pwa'
 // https://vite.dev/config/
 export default defineConfig({
   base: '/HeatPump/',
+  build: {
+    chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'recharts': ['recharts'],
+          'vendor': ['react', 'react-dom']
+        }
+      }
+    }
+  },
   plugins: [
     react(),
     VitePWA({
