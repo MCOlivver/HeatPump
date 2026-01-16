@@ -490,15 +490,35 @@ const HeatPumpCalculator: React.FC = () => {
 
       <div className="input-header">Heizkurve</div>
       <div className="input-group" style={{marginBottom: '10px'}}>
-        <div className="radio-group" style={{justifyContent: 'flex-start', gap: '20px'}}>
-            <label>
-                <input type="radio" checked={curveMode === 'params'} onChange={() => setCurveMode('params')} />
+        <div style={{display: 'flex', gap: '10px'}}>
+            <button 
+                onClick={() => setCurveMode('params')}
+                style={{
+                    flex: 1,
+                    padding: '8px',
+                    border: '1px solid #ccc',
+                    borderRadius: '4px',
+                    backgroundColor: curveMode === 'params' ? '#007bff' : '#f9f9f9',
+                    color: curveMode === 'params' ? 'white' : '#333',
+                    cursor: 'pointer'
+                }}
+            >
                 Parameter (a, b)
-            </label>
-            <label>
-                <input type="radio" checked={curveMode === 'points'} onChange={() => setCurveMode('points')} />
+            </button>
+             <button 
+                onClick={() => setCurveMode('points')}
+                style={{
+                    flex: 1,
+                    padding: '8px',
+                    border: '1px solid #ccc',
+                    borderRadius: '4px',
+                    backgroundColor: curveMode === 'points' ? '#007bff' : '#f9f9f9',
+                    color: curveMode === 'points' ? 'white' : '#333',
+                    cursor: 'pointer'
+                }}
+            >
                 2-Punkte (Fuß/End)
-            </label>
+            </button>
         </div>
       </div>
 
@@ -549,15 +569,35 @@ const HeatPumpCalculator: React.FC = () => {
 
       <div className="input-group">
         <label>Berechnungsmodus:</label>
-        <div className="radio-group">
-            <label>
-                <input type="radio" checked={calcMode === 'physics'} onChange={() => setCalcMode('physics')} />
+        <div style={{display: 'flex', gap: '10px'}}>
+            <button 
+                onClick={() => setCalcMode('physics')}
+                style={{
+                    flex: 1,
+                    padding: '8px',
+                    border: '1px solid #ccc',
+                    borderRadius: '4px',
+                    backgroundColor: calcMode === 'physics' ? '#007bff' : '#f9f9f9',
+                    color: calcMode === 'physics' ? 'white' : '#333',
+                    cursor: 'pointer'
+                }}
+            >
                 Bauphysik (U * A)
-            </label>
-            <label>
-                <input type="radio" checked={calcMode === 'consumption'} onChange={() => setCalcMode('consumption')} />
+            </button>
+            <button 
+                onClick={() => setCalcMode('consumption')}
+                style={{
+                    flex: 1,
+                    padding: '8px',
+                    border: '1px solid #ccc',
+                    borderRadius: '4px',
+                    backgroundColor: calcMode === 'consumption' ? '#007bff' : '#f9f9f9',
+                    color: calcMode === 'consumption' ? 'white' : '#333',
+                    cursor: 'pointer'
+                }}
+            >
                 Verbrauch (Gas/Öl)
-            </label>
+            </button>
         </div>
       </div>
 
@@ -627,7 +667,7 @@ const HeatPumpCalculator: React.FC = () => {
       )}
 
       <div style={{ marginTop: '30px', textAlign: 'center', fontSize: '0.8rem', color: '#999' }}>
-        v1.9 (12.01.2025)
+        v1.10 (12.01.2025)
       </div>
     </div>
   );
