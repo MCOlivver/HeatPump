@@ -765,19 +765,34 @@ const HeatPumpCalculator: React.FC = () => {
                         tickFormatter={(str) => new Date(str).toLocaleDateString('de-DE', {month: 'short'})}
                         minTickGap={30}
                    />
-                   <YAxis yAxisId="left" label={{ value: '°C', angle: -90, position: 'insideLeft' }} />
-                   <YAxis yAxisId="right" orientation="right" label={{ value: 'kW / COP', angle: 90, position: 'insideRight' }} />
+                   <YAxis 
+                        yAxisId="left" 
+                        stroke="#2196F3"
+                        label={{ value: '°C', angle: -90, position: 'insideLeft', fill: '#2196F3' }} 
+                   />
+                   <YAxis 
+                        yAxisId="right_power" 
+                        orientation="right" 
+                        stroke="#F44336"
+                        label={{ value: 'kW', angle: 90, position: 'insideRight', fill: '#F44336' }}
+                   />
+                   <YAxis 
+                        yAxisId="right_cop" 
+                        orientation="right" 
+                        stroke="#4CAF50"
+                        label={{ value: 'COP', angle: 90, position: 'insideRight', fill: '#4CAF50', dy: -20 }}
+                   />
                    <Tooltip 
                         labelFormatter={(label) => formatDateLocale(label)}
                         formatter={(value: any, name: any) => [
                             typeof value === 'number' ? value.toLocaleString('de-DE', {maximumFractionDigits: 2}) : '-', 
-                            name === 'avgTemp' ? 'Außen (°C)' : name === 'avgElecKW' ? 'Strom (kW)' : 'COP'
+                            name
                         ]}
                    />
                    <Legend verticalAlign="top"/>
                    <Line yAxisId="left" type="monotone" dataKey="avgTemp" stroke="#2196F3" name="Außen (°C)" dot={false} strokeWidth={2} />
-                   <Line yAxisId="right" type="monotone" dataKey="avgElecKW" stroke="#F44336" name="Strom (kW)" dot={false} strokeWidth={2} />
-                   <Line yAxisId="right" type="monotone" dataKey="cop" stroke="#4CAF50" name="COP" connectNulls={false} dot={false} strokeWidth={2} />
+                   <Line yAxisId="right_power" type="monotone" dataKey="avgElecKW" stroke="#F44336" name="Strom (kW)" dot={false} strokeWidth={2} />
+                   <Line yAxisId="right_cop" type="monotone" dataKey="cop" stroke="#4CAF50" name="COP" connectNulls={false} dot={false} strokeWidth={2} />
                 </LineChart>
              </ResponsiveContainer>
           </div>
@@ -785,7 +800,7 @@ const HeatPumpCalculator: React.FC = () => {
       )}
 
       <div style={{ marginTop: '30px', textAlign: 'center', fontSize: '0.8rem', color: '#999' }}>
-        v1.14 (16.01.2025)
+        v1.15 (16.01.2025)
         <br />
         Daten werden nur lokal zu Berechnungszwecken gespeichert.
       </div>
