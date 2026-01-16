@@ -19,7 +19,7 @@ export default defineConfig({
             urlPattern: /^https:\/\/archive-api\.open-meteo\.com\/v1\/archive/,
             handler: 'CacheFirst',
             options: {
-              cacheName: 'weather-data-cache-v1.10',
+              cacheName: 'weather-data-cache-v1.11',
               expiration: {
                 maxEntries: 50,
                 maxAgeSeconds: 60 * 60 * 24 * 30 // 30 Days

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { subDays, subYears, format } from 'date-fns';
+import { subDays, subYears, addDays, format } from 'date-fns';
 import './HeatPumpCalculator.css';
 
 interface WeatherData {
@@ -47,7 +47,7 @@ const HeatPumpCalculator: React.FC = () => {
   // Defaults
   const today = new Date();
   const yesterday = subDays(today, 1);
-  const oneYearAgo = subYears(yesterday, 1);
+  const oneYearAgo = addDays(subYears(yesterday, 1), 1);
   // Remove hours for date comparison
   const todayStart = new Date(today);
   todayStart.setHours(0,0,0,0);
@@ -667,7 +667,7 @@ const HeatPumpCalculator: React.FC = () => {
       )}
 
       <div style={{ marginTop: '30px', textAlign: 'center', fontSize: '0.8rem', color: '#999' }}>
-        v1.10 (12.01.2025)
+        v1.11 (16.01.2025)
       </div>
     </div>
   );
