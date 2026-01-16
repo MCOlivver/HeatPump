@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { subDays, subYears, addDays, format } from 'date-fns';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import './HeatPumpCalculator.css';
 
 interface WeatherData {
@@ -8,6 +9,13 @@ interface WeatherData {
     time: string[];
     temperature_2m: number[];
   };
+}
+
+interface DailyData {
+    date: string; // YYYY-MM-DD
+    avgTemp: number;
+    avgElecKW: number;
+    cop: number | null;
 }
 
 interface LocationResult {
@@ -104,6 +112,7 @@ const HeatPumpCalculator: React.FC = () => {
     maxElecTemp: number;
     startDate: string; 
     endDate: string;
+    dailyStats: DailyData[];
   } | null>(null);
   
   // Date validation
@@ -329,9 +338,21 @@ const HeatPumpCalculator: React.FC = () => {
          k_load = uVal * area;
       }
 
+      // Daily aggregation map
+      const dailyMap = new Map<string, { tSum: number; count: number; heatWh: number; elecWh: number }>();
+
       for (let i = 0; i < temps.length; i++) {
         const tOut = temps[i];
         if (tOut === null || tOut === undefined) continue;
+        
+        // Initialize daily entry
+        const dateStr = resp.data.hourly.time[i].substring(0, 10); // YYYY-MM-DD
+        if (!dailyMap.has(dateStr)) {
+            dailyMap.set(dateStr, { tSum: 0, count: 0, heatWh: 0, elecWh: 0 });
+        }
+        const dayEntry = dailyMap.get(dateStr)!;
+        dayEntry.tSum += tOut;
+        dayEntry.count++;
         
         // Heizlast Q = k_load * (Ti - Ta)
         // Check heating period
@@ -389,6 +410,9 @@ const HeatPumpCalculator: React.FC = () => {
           totalElecWh += pElec;
           heatHours++;
           
+          dayEntry.heatWh += qLoad;
+          dayEntry.elecWh += pElec;
+          
           if (pElec > maxElecLoadW) {
              maxElecLoadW = pElec;
              maxElecDate = resp.data.hourly.time[i];
@@ -400,6 +424,22 @@ const HeatPumpCalculator: React.FC = () => {
       const heatKWh = totalHeatWh / 1000.0;
       const elecKWh = totalElecWh / 1000.0;
       const jaz = elecKWh > 0 ? heatKWh / elecKWh : 0.0;
+      
+      const dailyStats: DailyData[] = Array.from(dailyMap.entries()).map(([date, d]) => {
+          const avgTemp = d.count > 0 ? d.tSum / d.count : 0;
+          // Avg Power (kW) = Total Energy (kWh) / 24h
+          const avgElecKW = (d.elecWh / 1000.0) / 24.0; 
+          // COP = Heat / Elec
+          // Only show COP if elec > 0
+          const cop = d.elecWh > 0.1 ? d.heatWh / d.elecWh : null;
+          
+          return {
+              date,
+              avgTemp,
+              avgElecKW,
+              cop
+          };
+      }).sort((a,b) => a.date.localeCompare(b.date));
 
       setResult({
         hoursTotal: temps.length,
@@ -413,7 +453,8 @@ const HeatPumpCalculator: React.FC = () => {
         maxElecDate: maxElecDate.replace('T', ' '),
         maxElecTemp,
         startDate: startDate,
-        endDate: endDate
+        endDate: endDate,
+        dailyStats
       });
 
     } catch (e) {
@@ -713,11 +754,38 @@ const HeatPumpCalculator: React.FC = () => {
           </div>
 
           <p className="big-jaz">Arbeitszahl (COP): {formatNum(result.jaz)}</p>
+
+          <div style={{width: '100%', height: '350px', marginTop: '30px'}}>
+             <h4 style={{textAlign:'center', marginBottom:'10px'}}>Tagesverlauf</h4>
+             <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={result.dailyStats} margin={{top: 5, right: 30, left: 20, bottom: 5}}>
+                   <CartesianGrid strokeDasharray="3 3" />
+                   <XAxis 
+                        dataKey="date" 
+                        tickFormatter={(str) => new Date(str).toLocaleDateString('de-DE', {month: 'short'})}
+                        minTickGap={30}
+                   />
+                   <YAxis yAxisId="left" label={{ value: '°C', angle: -90, position: 'insideLeft' }} />
+                   <YAxis yAxisId="right" orientation="right" label={{ value: 'kW / COP', angle: 90, position: 'insideRight' }} />
+                   <Tooltip 
+                        labelFormatter={(label) => formatDateLocale(label)}
+                        formatter={(value: any, name: any) => [
+                            typeof value === 'number' ? value.toLocaleString('de-DE', {maximumFractionDigits: 2}) : '-', 
+                            name === 'avgTemp' ? 'Außen (°C)' : name === 'avgElecKW' ? 'Strom (kW)' : 'COP'
+                        ]}
+                   />
+                   <Legend verticalAlign="top"/>
+                   <Line yAxisId="left" type="monotone" dataKey="avgTemp" stroke="#2196F3" name="Außen (°C)" dot={false} strokeWidth={2} />
+                   <Line yAxisId="right" type="monotone" dataKey="avgElecKW" stroke="#F44336" name="Strom (kW)" dot={false} strokeWidth={2} />
+                   <Line yAxisId="right" type="monotone" dataKey="cop" stroke="#4CAF50" name="COP" connectNulls={false} dot={false} strokeWidth={2} />
+                </LineChart>
+             </ResponsiveContainer>
+          </div>
         </div>
       )}
 
       <div style={{ marginTop: '30px', textAlign: 'center', fontSize: '0.8rem', color: '#999' }}>
-        v1.13 (16.01.2025)
+        v1.14 (16.01.2025)
         <br />
         Daten werden nur lokal zu Berechnungszwecken gespeichert.
       </div>
