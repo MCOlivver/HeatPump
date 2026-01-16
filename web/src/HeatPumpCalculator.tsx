@@ -55,6 +55,13 @@ const HeatPumpCalculator: React.FC = () => {
   const [eff, setEff] = useStickyState<number>(0.5, 'hp_eff');
   const [startDate, setStartDate] = useState<string>(format(oneYearAgo, 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState<string>(format(yesterday, 'yyyy-MM-dd'));
+
+  // Heating Period (Day/Month)
+  const [heatStartD, setHeatStartD] = useStickyState<number>(1, 'hp_heatStartD');
+  const [heatStartM, setHeatStartM] = useStickyState<number>(10, 'hp_heatStartM'); // Oct
+  const [heatEndD, setHeatEndD] = useStickyState<number>(30, 'hp_heatEndD');
+  const [heatEndM, setHeatEndM] = useStickyState<number>(4, 'hp_heatEndM');   // Apr
+
   const [tempInnen, setTempInnen] = useStickyState<number>(20.0, 'hp_tempInnen');
   const [paramA, setParamA] = useStickyState<number>(1.0, 'hp_paramA');
   const [paramB, setParamB] = useStickyState<number>(22.0, 'hp_paramB');
@@ -202,6 +209,8 @@ const HeatPumpCalculator: React.FC = () => {
       setLocationName('Hamburg');
       setLat(53.5511);
       setLon(9.9937);
+      setHeatStartD(1); setHeatStartM(10);
+      setHeatEndD(30);  setHeatEndM(4);
       // Dates are not sticky, so we can leave them or reset them too if desired
       // setStartDate(format(oneYearAgo, 'yyyy-MM-dd'));
       // setEndDate(format(yesterday, 'yyyy-MM-dd'));
@@ -250,16 +259,38 @@ const HeatPumpCalculator: React.FC = () => {
       // 1. First Pass: Calculate total "Degree Hours" if in consumption mode
       let k_load = 0; // W/K (Conductance)
       
+      const checkInHeatingPeriod = (isoTime: string) => {
+         // isoTime: "2023-01-01T00:00"
+         const d = new Date(isoTime);
+         const m = d.getMonth() + 1; // 1-12
+         const day = d.getDate(); // 1-31
+         
+         // Convert to simple integer MM*100 + DD for comparison
+         // e.g. Oct 1 -> 1001, Apr 30 -> 430
+         const currentVal = m * 100 + day;
+         const startVal = heatStartM * 100 + heatStartD;
+         const endVal = heatEndM * 100 + heatEndD; // 0430
+         
+         if (startVal <= endVal) {
+             // Normal range (e.g. Jan to Mar): Start <= Current <= End
+             return currentVal >= startVal && currentVal <= endVal;
+         } else {
+             // Wrap around (e.g. Oct to Apr): Current >= Start OR Current <= End
+             return currentVal >= startVal || currentVal <= endVal;
+         }
+      };
+
       if (calcMode === 'consumption') {
          let sumDegreeHours = 0;
-         for (const tOut of temps) {
-             if (tOut !== null && tOut < tempInnen) {
+         for (let i=0; i<temps.length; i++) {
+             const tOut = temps[i];
+             if (tOut !== null && tOut < tempInnen && checkInHeatingPeriod(resp.data.hourly.time[i])) {
                  sumDegreeHours += (tempInnen - tOut);
              }
          }
          
          if (sumDegreeHours === 0) {
-           setError("Keine Heizstunden im Zeitraum. Berechnung aus Verbrauch nicht möglich.");
+           setError("Keine Heizstunden im Zeitraum (oder Prüfung auf Heizgrenze fehlgeschlagen).");
            setLoading(false);
            return;
          }
@@ -289,7 +320,10 @@ const HeatPumpCalculator: React.FC = () => {
         if (tOut === null || tOut === undefined) continue;
         
         // Heizlast Q = k_load * (Ti - Ta)
-        if (tOut < tempInnen) {
+        // Check heating period
+        const inHeatingPeriod = checkInHeatingPeriod(resp.data.hourly.time[i]);
+        
+        if (tOut < tempInnen && inHeatingPeriod) {
           const qLoad = k_load * (tempInnen - tOut);
           
           if (qLoad > maxHeatLoadW) {
@@ -428,6 +462,30 @@ const HeatPumpCalculator: React.FC = () => {
                Startdatum &lt;= Enddatum &lt; heute
             </small>
          </div>
+      </div>
+      
+      <div className="input-group">
+          <label>Heizperiode (Tag.Monat):</label>
+          <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
+              <span>Von:</span>
+              <input type="number" min="1" max="31" style={{width:'60px'}} value={heatStartD} onChange={(e)=>setHeatStartD(parseInt(e.target.value))} />
+              <span>.</span>
+              <select value={heatStartM} onChange={(e)=>setHeatStartM(parseInt(e.target.value))}>
+                  <option value={1}>Januar</option><option value={2}>Februar</option><option value={3}>März</option>
+                  <option value={4}>April</option><option value={5}>Mai</option><option value={6}>Juni</option>
+                  <option value={7}>Juli</option><option value={8}>August</option><option value={9}>September</option>
+                  <option value={10}>Oktober</option><option value={11}>November</option><option value={12}>Dezember</option>
+              </select>
+              <span style={{marginLeft:'10px'}}>Bis:</span>
+              <input type="number" min="1" max="31" style={{width:'60px'}} value={heatEndD} onChange={(e)=>setHeatEndD(parseInt(e.target.value))} />
+              <span>.</span>
+              <select value={heatEndM} onChange={(e)=>setHeatEndM(parseInt(e.target.value))}>
+                  <option value={1}>Januar</option><option value={2}>Februar</option><option value={3}>März</option>
+                  <option value={4}>April</option><option value={5}>Mai</option><option value={6}>Juni</option>
+                  <option value={7}>Juli</option><option value={8}>August</option><option value={9}>September</option>
+                  <option value={10}>Oktober</option><option value={11}>November</option><option value={12}>Dezember</option>
+              </select>
+          </div>
       </div>
 
       <div className="input-header">Heizkurve</div>
@@ -569,7 +627,7 @@ const HeatPumpCalculator: React.FC = () => {
       )}
 
       <div style={{ marginTop: '30px', textAlign: 'center', fontSize: '0.8rem', color: '#999' }}>
-        v1.8 (12.01.2025)
+        v1.9 (12.01.2025)
       </div>
     </div>
   );
